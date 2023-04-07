@@ -26,11 +26,10 @@ class RecallController extends Controller
     {
         $limit = $request->get('limit');
         $limit_count = 50;
-        if ($limit)
-        {
+        if ($limit) {
             $limit_count = $limit;
         }
-        $recall = Recall::where(['recall_filial_id'=>Auth::user()->filial_id])->paginate($limit_count);
+        $recall = Recall::where(['recall_filial_id' => Auth::user()->filial_id])->paginate($limit_count);
         return  $recall;
     }
 
@@ -63,10 +62,9 @@ class RecallController extends Controller
      */
     public function show($id)
     {
-        $recall = Recall::where(['recall_id'=>$id,'recall_filial_id'=>Auth::user()->filial_id])->first();
-        if (!$recall)
-        {
-            return response([['message'=>'Not found']],404);
+        $recall = Recall::where(['recall_id' => $id, 'recall_filial_id' => Auth::user()->filial_id])->first();
+        if (!$recall) {
+            return response([['message' => 'Not found']], 404);
         }
         return $recall;
     }
@@ -102,22 +100,16 @@ class RecallController extends Controller
      */
     public function destroy($id)
     {
-        $recall = Recall::where(['recall_filial_id'=>Auth::user()->filial_id,'recall_id'=>$id])->first();
-        if ($recall)
-        {
-            $destroy =  Recall::where(['recall_filial_id'=>Auth::user()->filial_id,'recall_id'=>$id])->delete();
-            if ($destroy)
-            {
-                return response(['message'=>'success deleted'],200);
+        $recall = Recall::where(['recall_filial_id' => Auth::user()->filial_id, 'recall_id' => $id])->first();
+        if ($recall) {
+            $destroy =  Recall::where(['recall_filial_id' => Auth::user()->filial_id, 'recall_id' => $id])->delete();
+            if ($destroy) {
+                return response(['message' => 'success deleted'], 200);
+            } else {
+                return response(['message' => 'not deleted']);
             }
-            else
-            {
-                return response(['message'=>'not deleted']);
-            }
-        }
-        else
-        {
-            return response(['message'=>'not found'],404);
+        } else {
+            return response(['message' => 'not found'], 404);
         }
     }
 
@@ -133,14 +125,15 @@ class RecallController extends Controller
 
 
 
-        $calling = $calling->select(["costumer_id","order_last_price","top_sana","order_id","order_date"])
-            ->where(['order_filial_id'=>Auth::user()->filial_id,'last_operator_id'=>0,'order_status' => 'topshirildi'])
-            ->having(DB::raw('MAX(DATE(order_date))'),'>',date('Y-m-d', strtotime('-6 months')))
-            ->having(DB::raw('MAX(DATE(order_date))'),'<',date('Y-m-d'))
-            ->groupBy(["costumer_id","order_last_price","top_sana","order_id"])
+        $calling = $calling->select(["costumer_id", "order_last_price", "top_sana", "order_id", "order_date"])
+            ->where(['order_filial_id' => Auth::user()->filial_id, 'last_operator_id' => 0, 'order_status' => 'topshirildi'])
+            ->having(DB::raw('MAX(DATE(order_date))'), '>', date('Y-m-d', strtotime('-6 months')))
+            ->having(DB::raw('MAX(DATE(order_date))'), '<', date('Y-m-d'))
+            ->groupBy(["costumer_id", "order_last_price", "top_sana", "order_id"])
             ->groupBy('order_date')
             ->orderByRaw('MAX(top_sana)')
-            ->withSum('mijozkirims','summa')
+            ->withSum('mijozkirims', 'summa')
+            ->with('custumer')
             ->paginate($limit_count);
         return $calling;
     }
@@ -149,22 +142,22 @@ class RecallController extends Controller
         $recall = Recall::query();
 
         $res =  $recall->create([
-            'recall_filial_id'=>Auth::user()->filial_id,
-            'recall_costumer_phone'=>$request->input('phone'),
-            'recall_date'=>$request->input('date'),
-            'recall_time'=>$request->input('time'),
-            'recall_status'=>'off',
-            'izoh'=>$request->input('izoh'),
-            'user_id'=>0,
-            'operator_id'=>Auth::id(),
+            'recall_filial_id' => Auth::user()->filial_id,
+            'recall_costumer_phone' => $request->input('phone'),
+            'recall_date' => $request->input('date'),
+            'recall_time' => $request->input('time'),
+            'recall_status' => 'off',
+            'izoh' => $request->input('izoh'),
+            'user_id' => 0,
+            'operator_id' => Auth::id(),
         ]);
         if ($res)
             return response([
-                'message'=>'vaqt belgilandi'
-            ],200);
-        else{
+                'message' => 'vaqt belgilandi'
+            ], 200);
+        else {
             return response([
-                'message'=>'xatolik'
+                'message' => 'xatolik'
             ]);
         }
     }
@@ -176,7 +169,7 @@ class RecallController extends Controller
             $limit_count = $limit;
 
         $recall = Recall::query();
-        $recall = $recall->where(['recall_filial_id'=>Auth::user()->filial_id,'recall_status'=>'on'])->paginate($limit_count);
+        $recall = $recall->where(['recall_filial_id' => Auth::user()->filial_id, 'recall_status' => 'on'])->paginate($limit_count);
         return $recall;
     }
     public function talking6(Request $request)
@@ -188,12 +181,13 @@ class RecallController extends Controller
 
         $calling = Order::query();
         $date = date('Y-m-d', strtotime('-6 months'));
-        $calling = $calling->select(["costumer_id","order_last_price","top_sana","order_id","order_date"])
-            ->where(['order_filial_id'=>Auth::user()->filial_id,'last_operator_id2'=>0,'order_status' => 'topshirildi'])
-            ->having(DB::raw('MAX(DATE(order_date))'),'>',date('Y-m-d', strtotime('-6 months')))
-            ->having(DB::raw('MAX(DATE(order_date))'),'<',date('Y-m-d'))
-            ->groupBy(["costumer_id","order_last_price","top_sana","order_id"])
+        $calling = $calling->select(["costumer_id", "order_last_price", "top_sana", "order_id", "order_date"])
+            ->where(['order_filial_id' => Auth::user()->filial_id, 'last_operator_id2' => 0, 'order_status' => 'topshirildi'])
+            ->having(DB::raw('MAX(DATE(order_date))'), '>', date('Y-m-d', strtotime('-6 months')))
+            ->having(DB::raw('MAX(DATE(order_date))'), '<', date('Y-m-d'))
+            ->groupBy(["costumer_id", "order_last_price", "top_sana", "order_id"])
             ->groupBy('order_date')
+            ->with('custumer')
             ->orderByRaw('MAX(top_sana)')
             ->paginate($limit_count);
         return $calling;
@@ -203,62 +197,58 @@ class RecallController extends Controller
         $limit = $request->get('limit');
         if (!$limit)
             $limit = 15;
-        $order= Order::query();
+        $order = Order::query();
         $order = $order
-            ->select(
-                'costumer_id',
-                'order_id',
-                )
-            ->where(['order_filial_id'=>Auth::user()->filial_id])
-            ->whereYear('top_sana','=',date('Y'))
+            // ->select(
+            //     'costumer_id',
+            //     'order_id',
+            // )
+            ->where(['order_filial_id' => Auth::user()->filial_id])
+            ->whereYear('top_sana', '=', date('Y'))
             ->groupBy('costumer_id')
             ->withOnly('custumer:id,call_count')
+            ->with('custumer')
             ->paginate($limit);
         return $order;
     }
-    public function talkinguser($order_id,Request $request)
+    public function talkinguser($order_id, Request $request)
     {
         $type = $request->input('type');
         $izoh = $request->input('izoh');
-//        $order_id = $request->input('order_id');
-        $order = Order::query()->where(['order_filial_id'=>Auth::user()->filial_id,'order_id'=>$order_id]);
+        //        $order_id = $request->input('order_id');
+        $order = Order::query()->where(['order_filial_id' => Auth::user()->filial_id, 'order_id' => $order_id]);
 
-        if ($type == 'null' || $type == null)
-        {
-            return response(['message'=>'mijoz fikrini kiriting']);
-        }
-        else if (empty($izoh))
-        {
-            return response(['message'=>'mijoz izohini kiriting kiriting']);
+        if ($type == 'null' || $type == null) {
+            return response(['message' => 'mijoz fikrini kiriting']);
+        } else if (empty($izoh)) {
+            return response(['message' => 'mijoz izohini kiriting kiriting']);
         }
 
         $order->update([
-           'last_operator_id'=>Auth::id(),
-            'talk_date'=>date('Y-m-d H:i:s')
+            'last_operator_id' => Auth::id(),
+            'talk_date' => date('Y-m-d H:i:s')
         ]);
 
-        return  response(['message'=>'Qo`ng`iroq amalga oshirildi.']);
+        return  response(['message' => 'Qo`ng`iroq amalga oshirildi.']);
     }
     public function talkingg6(Request $request)
     {
         $izoh  = $request->input('izoh');
         $type = $request->input('type');
         $order_id = $request->input('order_id');
-        $order = Order::where(['order_filial_id'=>Auth::user()->filial_id,'order_id'=>$order_id]);
+        $order = Order::where(['order_filial_id' => Auth::user()->filial_id, 'order_id' => $order_id]);
 
-        if (empty($izoh) or $izoh == null || $izoh == 'null')
-        {
-            return response(['message'=>'Mijoz izohini kiritig']);
+        if (empty($izoh) or $izoh == null || $izoh == 'null') {
+            return response(['message' => 'Mijoz izohini kiritig']);
         }
 
-        if ($type == null || $type == 'null')
-        {
-            return  response(['message'=>'Mijoz fikrini tanang']);
+        if ($type == null || $type == 'null') {
+            return  response(['message' => 'Mijoz fikrini tanang']);
         }
         $order->update([
-            'last_operator_id2'=>Auth::id(),
-            'talk_date2'=>date('Y-m-d')
+            'last_operator_id2' => Auth::id(),
+            'talk_date2' => date('Y-m-d')
         ]);
-        return  response(['message'=>'qo`ng`iroq amalga oshirildi']);
+        return  response(['message' => 'qo`ng`iroq amalga oshirildi']);
     }
 }

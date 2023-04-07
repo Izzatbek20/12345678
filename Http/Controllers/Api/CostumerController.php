@@ -289,10 +289,15 @@ class CostumerController extends Controller
         if (!$order->first())
             return response(['message' => 'not found costumer'], 404);
 
-        $order->update([
+        $model = $order->update([
             'called' => 1
         ]);
-        return  response(['message' => 'called']);
+
+        if ($model) {
+            return  response(['message' => 'called']);
+        } else {
+            return  response(['message' => 'xatolik']);
+        }
     }
     /**
      * Programmaga telefon kelgan ular telefon raqamni yuboradi va telefon egasi qaytariladi
@@ -302,17 +307,21 @@ class CostumerController extends Controller
     {
         $modelFind = Costumers::query()
             ->where(function ($query) use ($phone) {
-                $query->where('costumer_phone_1', $phone);
-                $query->orwhere('costumer_phone_2', $phone);
-                $query->orwhere('costumer_phone_3', $phone);
+                $query->where('costumer_phone_1', 'like', '%' . $phone . '%');
+                $query->orwhere('costumer_phone_2', 'like', '%' . $phone . '%');
+                $query->orwhere('costumer_phone_3', 'like', '%' . $phone . '%');
             })
             ->where('costumers_filial_id', auth()->user()->filial_id)
             ->first();
 
         if (empty($modelFind)) {
-            return response('Mijoz topilmadi', 404);
+            return response([
+                'message' => 'Mijoz topilmadi'
+            ], 404);
         } else {
-            return response($modelFind, 200);
+            return response([
+                'Customer' => $modelFind
+            ], 200);
         }
     }
     public function recall($type)
@@ -390,12 +399,149 @@ class CostumerController extends Controller
 
     public function costumerView($id, Request $request)
     {
-        $model = Costumers::where('id', $id)->with('orders')->with('pullar')->with('nasiya')->first();
+        $model = Costumers::where('id', $id)
+            ->with('orders')
+            ->with('orders.custumer:id,costumer_name')
+            ->with('orders.operator:id,fullname')
+            ->with('orders.transport:id,fullname')
+            ->with('orders.ombor:id,fullname')
+            ->with('orders.finishdriver:id,fullname')
+            ->with('orders.driver:id,fullname')
+            ->with('orders.cleans:id,order_id')
+            ->with('pullar')
+            ->with('pullar.user:id,fullname')
+            ->with('pullar.order:order_id,nomer')
+            ->with('nasiya')
+            ->with('nasiya.order:order_id,nomer')
+            ->first();
 
         if ($model) {
             return response($model);
         } else {
             return response('Bunday idli mijoz topilmadi');
         }
+    }
+
+    public function filter($type, Request $request)
+    {
+        $user = auth()->user();
+
+
+        $limit = $request->input('limit');
+        $offset = $request->input('offset');
+        $filter = $request->input('filter');
+
+
+
+        if (!$limit) {
+            $limit = 20;
+        }
+
+        if ($user->role == 'admin_operator' || $user->role == 'admin') {
+            $the_filial_id = 0;
+        } else {
+            $the_filial_id = $user->filial_id;
+        }
+
+        if ($type == 2) {
+            $orders = Order::query()->select(
+                'nomer',
+                'talk_date',
+                'talk_date2',
+                'last_izoh2 as last_izoh',
+                'talk_type2 as talk_type',
+                DB::raw('(SELECT fullname FROM user WHERE id = orders.last_operator_id2) AS dog'),
+                DB::raw('(SELECT costumer_name FROM costumers WHERE id = orders.costumer_id) AS brak'),
+            )->where('last_operator_id2', '>', 0)->where('order_filial_id', $the_filial_id);
+        } elseif ($type == 1) {
+            $orders = Order::query()->select(
+                'nomer',
+                'talk_date',
+                'talk_date2',
+                'last_izoh',
+                'talk_type',
+                DB::raw('(SELECT fullname FROM user WHERE id = orders.last_operator_id) AS dog'),
+                DB::raw('(SELECT costumer_name FROM costumers WHERE id = orders.costumer_id) AS brak'),
+            )->where('last_operator_id', '>', 0)->where('order_filial_id', $the_filial_id);
+        }
+
+
+        if ($offset > 1) {
+            $offset = ($offset - 1) * $limit;
+        } else {
+            $offset = 0;
+        }
+
+
+        if ($filter !== "none") {
+
+            // $sorting = $filter["sorting"];
+            $searching = $filter["searching"];
+            $between = $filter["between"];
+
+            if ($searching !== "none") {
+                foreach ($searching as $search) {
+
+                    if ($search["value"] == "-") {
+                        $orders = $orders->where([$search["name"] => ""]);
+                    } else {
+                        if ($type == 2) {
+                            if ($search["name"] == "dog") {
+                                $orders = $orders->where(DB::raw("(SELECT fullname FROM user WHERE id = orders.last_operator_id)"), 'like',  '%' . $search["value"] . '%');
+                            } elseif ($search["name"] == "brak") {
+                                $orders = $orders->where(DB::raw("(SELECT costumer_name FROM costumers WHERE id = orders.costumer_id)"), 'like', '%' . $search["value"] . '%');
+                            } elseif ($search["name"] == "talk_type" || $search["name"] == "last_izoh") {
+                                $orders = $orders->where($search["name"], 'like',  '%' . $search["value"] . '%');
+                            } else {
+                                $orders = $orders->where($search["name"], 'like', '%' . $search["value"] . '%');
+                            }
+                        } else {
+                            if ($search["name"] == "dog") {
+                                $orders = $orders->where(DB::raw("(SELECT fullname FROM user WHERE id = orders.last_operator_id)"), 'like', '%' . $search["value"] . '%');
+                            } elseif ($search["name"] == "brak") {
+                                $orders = $orders->where(DB::raw("(SELECT costumer_name FROM costumers WHERE id = orders.costumer_id)"), 'like', '%' . $search["value"] . '%');
+                            } elseif ($search["name"] == "talk_type" || $search["name"] == "last_izoh") {
+                                $orders = $orders->where($search["name"] . "2", 'like',  '%' . $search["value"] . '%');
+                            } else {
+                                $orders = $orders->where($search["name"], 'like', '%' . $search["value"] . '%');
+                            }
+                        }
+                    }
+                }
+            } else {
+                $searching = "none";
+            }
+
+            if ($between !== "none") {
+                $orders = $orders->where($between["name"], '>=', $between["from"])->where($between["name"], '<=', $between["to"]);
+            } else {
+                $between = "none";
+            }
+
+            // if ($sorting !== "none") {
+            //     $orders = $orders->orderBy('order_id', $sorting);
+            // } else {
+            //     $sorting = "none";
+            // }
+
+            // if ($sorting == "none" && $searching == "none" && $between == "none") {
+            //     $filter = "none";
+            // }
+        } else {
+            $filter = "none";
+        }
+
+        $orders = $orders->skip($offset)
+            ->take($limit)
+            ->get();
+
+        $offset = $offset + 1;
+
+        return response([
+            'data' => $orders,
+            'offset' => $offset,
+            'limit' => $limit,
+            'filter' => $filter,
+        ]);
     }
 }

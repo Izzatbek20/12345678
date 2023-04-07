@@ -36,17 +36,21 @@ class KorsatkichController extends Controller
         $to = $request->get('to');
 
         if (!$from) {
-            $from = date('Y-m-d');
+            $from = date('Y-m-d', strtotime(date('Y-m-d') . ' -1 day'));
         }
         if (!$to) {
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
         }
-        
+
         // Yuvish sonini va summasi aniqlash oalmiz
         $clean = Clean::query()
             ->select(DB::raw('count(*) as clean_count, SUM(clean_hajm) as clean_summ'))
             ->where(['clean_filial_id' => Auth::user()->filial_id])
-            ->whereBetween('sana', [$from, $to])
+            ->where(function ($query) {
+                $query->where('clean_status', 'quridi')
+                    ->orWhere('clean_status', 'qayta quridi');
+            })
+            ->whereBetween('clean_date', [$from, $to])
             ->first();
 
         // User ma'lumotlari olamiz
@@ -71,6 +75,11 @@ class KorsatkichController extends Controller
 
         // Qadoqlanganlar soni va hajm summasi
         $qadoqlandi = $cleans_where
+            ->where(function ($query) {
+                $query->where('clean_status', 'qadoqlandi')
+                    ->orWhere('clean_status', 'qayta qadoqlandi');
+            })
+            ->whereBetween('qad_date', [$from, $to])
             ->select(DB::raw('count(*) as qadoqlandi_count, SUM(clean_hajm) as qadoqlandi_summ'))
             ->first();
 
@@ -82,6 +91,7 @@ class KorsatkichController extends Controller
 
         // Topshriligan 
         $top_kvm = $cleans_where
+            ->where('clean_status', 'topshirildi')
             ->when(Auth::user()->role == 'yuvish' || Auth::user()->role == 'transport' || Auth::user()->role == 'tayorlov' || Auth::user()->role == 'saygak', function ($query) {
                 $query->where(['top_user' => Auth::id()]);
             })
@@ -90,19 +100,19 @@ class KorsatkichController extends Controller
             ->whereBetween('top_sana', [$from, $to])
             ->first();
 
-        $qayta_y = $cleans_qury;
-        $qayta_kv = $cleans_qury;
-        $topshirildi = $cleans_qury;
-        $olindi = $cleans_qury;
+        $qayta_y = clone $cleans_qury;
+        $qayta_kv = clone $cleans_qury;
+        $topshirildi = clone $cleans_qury;
+        $olindi = clone $cleans_qury;
 
         $order_query = Order::query();
 
-        $ozi_olib_ketadi = $order_query;
-        $recall6 = $order_query;
-        $olbk_num = $order_query;
-        $kechagi_recall = $order_query;
-        $order_qabul  = $order_query;
-        $order_cancel = $order_query;
+        $ozi_olib_ketadi = clone $order_query;
+        $recall6 = clone $order_query;
+        $olbk_num = clone $order_query;
+        $kechagi_recall = clone $order_query;
+        $order_qabul  = clone $order_query;
+        $order_cancel = clone $order_query;
 
         $maosh_history = Chiqim::query();
 
@@ -193,9 +203,9 @@ class KorsatkichController extends Controller
         $kun_maosh = $kun_maosh->where('maosh', '>', 0)->sum('maosh');
         $kechim = Auth::user()->filial->getMijozkirim()->whereDate('date', '>=', $from)->whereDate('date', '<=', $to);
         $nasiya = Auth::user()->filial->getNasiya()->whereDate('date', '>=', $from)->whereDate('date', '<=', $to);
-        $topshirildi = $topshirildi->where(['clean_filial_id' => Auth::user()->filial_id])
-            ->whereDate('qad_date', '>=', $from)
-            ->whereDate('qad_date', '<=', $to);
+        $topshirildi = $topshirildi->where('clean_status', 'topshirildi')->where(['clean_filial_id' => Auth::user()->filial_id])
+            ->whereDate('top_sana', '>=', $from)
+            ->whereDate('top_sana', '<=', $to);
 
 
         if (Auth::user()->role == 'yuvish' || Auth::user()->role == 'transport' || Auth::user()->role == 'tayorlov' || Auth::user()->role == 'saygak') {
@@ -260,10 +270,10 @@ class KorsatkichController extends Controller
         $from = $request->get('from');
         $to = $request->get('to');
         if (!$from) {
-            $from = date('Y-m-d');
+            $from = date('Y-m-d', strtotime(date('Y-m-d') . ' -1 day'));
         }
         if (!$to) {
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
         }
 
         $clean = Clean::query();
@@ -333,9 +343,9 @@ class KorsatkichController extends Controller
             $limit_count = $limit;
         }
         if (!$from)
-            $from = date('Y-m-d');
+            $from = date('Y-m-d', strtotime(date('Y-m-d') . ' -1 day'));
         if (!$to)
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
 
         $xizmat = Xizmatlar::query();
         $xizmat = $xizmat->where(['filial_id' => Auth::user()->filial_id, 'status' => 'active'])->get();
@@ -402,15 +412,16 @@ class KorsatkichController extends Controller
             $limit_count = $limit;
         }
         if (!$from)
-            $from = date('Y-m-d');
+            $from = date('Y-m-d', strtotime(date('Y-m-d') . ' -1 day'));
         if (!$to)
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
 
         $mijoz_kirim = MijozKirim::query();
         $mijoz_kirim = $mijoz_kirim->where(['filial_id' => Auth::user()->filial_id, 'user_id' => Auth::id()])
             ->whereDate('date', '>=', $from)
             ->whereDate('date', '<=', $to)
             ->with('user:id,fullname')
+            ->with('order.custumer')
             //            ->with('order')
             ->paginate($limit_count);
         return $mijoz_kirim;
@@ -427,9 +438,9 @@ class KorsatkichController extends Controller
             $limit = 8;
         }
         if (!$from)
-            $from = date('Y-m-d', strtotime(date('Y-m-d') . ' -20 day'));
+            $from = date('Y-m-d', strtotime(date('Y-m-d') . ' -1 day'));
         if (!$to)
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
 
         if (Auth::user()->role == 'tayorlov' or Auth::user()->role == 'yuvish') {
 
@@ -446,9 +457,9 @@ class KorsatkichController extends Controller
             }
 
             if (!$from)
-                $from = date('Y-m-d', strtotime(date('Y-m-d') . ' -20 day'));
+                $from = date('Y-m-d', strtotime(date('Y-m-d') . ' -1 day'));
             if (!$to)
-                $to = date('Y-m-d', strtotime('+1 day'));
+                $to = date('Y-m-d');
 
 
             $data = Clean::query()
@@ -459,6 +470,7 @@ class KorsatkichController extends Controller
                 ->join('user', 'user.id', '=', 'clean.user_id')
                 ->join('orders', 'orders.order_id', '=', 'clean.order_id')
                 ->join('xizmatlar', 'xizmatlar.xizmat_id', '=', 'clean.clean_product')
+                ->with('custumer')
                 ->select(
                     'user.id as id',
                     'orders.nomer as kv_id',
@@ -550,6 +562,7 @@ class KorsatkichController extends Controller
                 ->withSum('click', 'summa')
                 ->withSum('kechildi', 'summa')
                 ->withSum('nasiya', 'summa')
+                ->with('custumer')
                 ->with('operator');
 
             $order = $order->paginate($limit);
@@ -570,9 +583,9 @@ class KorsatkichController extends Controller
         }
 
         if (!$from)
-            $from = date('Y-m-d', strtotime(date('Y-m-d') . ' -20 day'));
+            $from = date('Y-m-d', strtotime(date('Y-m-d') . ' -1 day'));
         if (!$to)
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
 
         $data = Clean::query()
             ->where('clean_filial_id', Auth::user()->filial_id)
@@ -615,9 +628,9 @@ class KorsatkichController extends Controller
             $limit_count = $limit;
         }
         if (!$from)
-            $from = date('Y-m-d');
+            $from = date('Y-m-d', strtotime(date('Y-m-d') . ' -1 day'));
         if (!$to)
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
         $xizmat = Xizmatlar::query();
         $xizmat = $xizmat->where(['filial_id' => Auth::user()->filial_id, 'status' => 'active'])->get();
 
@@ -682,9 +695,9 @@ class KorsatkichController extends Controller
         }
 
         if (!$from)
-            $from = date('Y-m-d', strtotime(date('Y-m-d') . ' -20 day'));
+            $from = date('Y-m-d', strtotime(date('Y-m-d') . ' -1 day'));
         if (!$to)
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
 
 
         $data = Clean::query()
@@ -734,9 +747,9 @@ class KorsatkichController extends Controller
         }
 
         if (!$from)
-            $from = date('Y-m-d', strtotime(date('Y-m-d') . ' -20 day'));
+            $from = date('Y-m-d', strtotime(date('Y-m-d') . ' -1 day'));
         if (!$to)
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
 
         $data = Clean::query()
             ->where('clean_filial_id', Auth::user()->filial_id)
@@ -781,9 +794,9 @@ class KorsatkichController extends Controller
             $limit_count = $limit;
         }
         if (!$from)
-            $from = date('Y-m-d');
+            $from = date('Y-m-d', strtotime(date('Y-m-d') . ' -1 day'));
         if (!$to)
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
         $cleans = Clean::query();
 
         $cleans = $cleans->select('order_id')
@@ -809,9 +822,9 @@ class KorsatkichController extends Controller
         }
 
         if (empty($from))
-            $from = date('Y-m-d');
+            $from = date('Y-m-d', strtotime(date('Y-m-d') . ' -1 day'));
         if (empty($to))
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
 
 
         $data = Clean::query()
@@ -863,9 +876,9 @@ class KorsatkichController extends Controller
         }
 
         if (empty($from))
-            $from = date('Y-m-d');
+            $from = date('Y-m-d', strtotime(date('Y-m-d') . ' -1 day'));
         if (empty($to))
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
 
         $data = Clean::query()
             ->where('clean_filial_id', Auth::user()->filial_id)
@@ -913,9 +926,9 @@ class KorsatkichController extends Controller
     //     }
 
     //     if (!$from)
-    //         $from = date('Y-m-d', strtotime(date('Y-m-d') . ' -20 day'));
+    //         $from = date('Y-m-d', , strtotime(date('Y-m-d') . ' -1 day'));
     //     if (!$to)
-    //         $to = date('Y-m-d', strtotime('+1 day'));
+    //         $to = date('Y-m-d');
 
 
     //     $data = Order::query()
@@ -989,7 +1002,7 @@ class KorsatkichController extends Controller
         if (!$from)
             $from = date('Y-m-d');
         if (!$to)
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
 
         $transport = User::query()->select('id', 'fullname')->where(['filial_id' => Auth::user()->filial_id, 'role' => 'transport'])->get();
         $all = [];
@@ -1020,7 +1033,7 @@ class KorsatkichController extends Controller
         if (!$from)
             $from = date('Y-m-d');
         if (!$to)
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
 
         $orders = Order::query()
             ->select('order_id', 'costumer_id')
@@ -1058,7 +1071,7 @@ class KorsatkichController extends Controller
         if (!$from)
             $from = date('Y-m-d');
         if (!$to)
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
 
         $order = Order::query();
 
@@ -1067,6 +1080,7 @@ class KorsatkichController extends Controller
             ->whereDate('order_date', '>=', $from)
             ->whereDate('order_date', '<=', $to)
             ->with('transport:id,fullname')
+            ->with('custumer')
             ->paginate($limit_count);
 
         return $order;
@@ -1084,7 +1098,7 @@ class KorsatkichController extends Controller
         if (!$from)
             $from = date('Y-m-d');
         if (!$to)
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
 
         if (Auth::user()->role == 'yuvish' || Auth::user()->role == 'transport' || Auth::user()->role == 'tayorlov' || Auth::user()->role == 'saygak' | Auth::user()->role == 'operator ') {
             $users = User::where(['filial_id' => Auth::user()->filial_id, 'id' => Auth::id()])->first();
@@ -1117,7 +1131,7 @@ class KorsatkichController extends Controller
         if (!$from)
             $from = date('Y-m-d');
         if (!$to)
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
 
         $orders = Order::query();
         $orders = $orders->where(['order_filial_id' => Auth::user()->filial_id])
@@ -1143,7 +1157,7 @@ class KorsatkichController extends Controller
         if (!$from)
             $from = date('Y-m-d');
         if (!$to)
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
 
         $costumers = Costumers::query();
         $costumers = $costumers->where(['costumers_filial_id' => Auth::user()->filial_id])
@@ -1186,7 +1200,7 @@ class KorsatkichController extends Controller
         if (!$from)
             $from = date('Y-m-d');
         if (!$to)
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
 
         $nasiya = Nasiya::query();
         $nasiya = $nasiya->where(['filial_id' => Auth::user()->filial_id, 'user_id' => Auth::id()])
@@ -1203,7 +1217,7 @@ class KorsatkichController extends Controller
         if (!$limit)
             $limit = 50;
         if (!$to)
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
         if (!$from)
             $from = date('Y-m-d');
 
@@ -1238,7 +1252,7 @@ class KorsatkichController extends Controller
         if (!$limit)
             $limit = 50;
         if (!$to)
-            $to = date('Y-m-d', strtotime('+1 day'));
+            $to = date('Y-m-d');
         if (!$from)
             $from = date('Y-m-d');
 

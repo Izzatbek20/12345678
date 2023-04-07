@@ -24,4 +24,8 @@ class Nasiya extends Model
     {
         return $this->hasOne(Costumers::class,'id','nasiyachi_id');
     }
+    public function order()
+    {
+        return $this->hasOne(Order::class,'order_id','order_id');
+    }
 }

@@ -129,6 +129,8 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::post('/{costumer_id}/called', [CostumerController::class, 'called']);
         Route::get('/has/{phone}', [CostumerController::class, 'filterPhone']);
         Route::get('/callreport/{type}', [CostumerController::class, 'recall']);
+        Route::post('/callreport/{type}/filter', [CostumerController::class, 'filter']);
+        Route::get('/ammalari/{id}', [CostumerController::class, 'costumerView']);
     });
 
     Route::get('/recalls/recall', [RecallController::class, 'recall']);

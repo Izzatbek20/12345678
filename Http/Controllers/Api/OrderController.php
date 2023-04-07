@@ -443,6 +443,9 @@ class OrderController extends Controller
                 // }])
                 ->with('cleans')
                 ->with('cleans.xizmat')
+                ->with('cleans.tokcha')
+                ->with('cleans.qadoqladi:id,fullname')
+                ->with('cleans.yuvdi:id,fullname')
                 ->with('custumer')
                 ->first(), 200);
         }
@@ -453,6 +456,9 @@ class OrderController extends Controller
                 // }])
                 ->with('cleans')
                 ->with('cleans.xizmat')
+                ->with('cleans.tokcha')
+                ->with('cleans.qadoqladi:id,fullname')
+                ->with('cleans.yuvdi:id,fullname')
                 ->with('custumer')
                 ->first(), 200);
         } else {
@@ -462,6 +468,9 @@ class OrderController extends Controller
                 // }])
                 ->with('cleans')
                 ->with('cleans.xizmat')
+                ->with('cleans.tokcha')
+                ->with('cleans.qadoqladi:id,fullname')
+                ->with('cleans.yuvdi:id,fullname')
                 ->with('custumer')
                 ->first(), 200);
         }
@@ -604,7 +613,6 @@ class OrderController extends Controller
             ->where('clean_filial_id', Auth::user()->filial_id)
             ->with('driver:id,fullname')
             ->with('order')
-            ->with('custumer')
             ->groupBy(["order_id", "reclean_driver", 'costumer_id'])
             ->paginate($limit_count);
         return $clean;
@@ -1979,26 +1987,29 @@ class OrderController extends Controller
 
         if ($status == 'new') {
             if (Auth::user()->role == 'admin_filial') {
-                $order->where(['order_filial_id' => Auth::user()->filial_id, 'order_status' => 'keltirish']);
+                $order->where('order_filial_id', Auth::user()->filial_id)->where('order_status', 'keltirish');
             } else if (Auth::user()->role == 'saygak') {
-                $order->where(['order_filial_id' => Auth::user()->filial_id, 'order_status' => 'keltirish', 'order_driver' => Auth::id()]);
+                $order->where('order_filial_id', Auth::user()->filial_id)->where('order_status', 'keltirish')->where('order_driver', Auth::id());
             } else if (Auth::user()->role == 'transport') {
-                $order->where(['order_filial_id' => Auth::user()->filial_id, 'order_status' => 'keltirish', 'order_driver' => 'hamma'])
-                    ->orWhere(['order_filial_id' => Auth::user()->filial_id, 'order_status' => 'keltirish', 'order_driver' => Auth::id()]);
+                $order->where('order_filial_id', Auth::user()->filial_id)
+                    ->where('order_status', 'keltirish')
+                    ->where(function ($query) {
+                        $query->where('order_driver', 'hamma')->orWhere('order_driver', Auth::id());
+                    });
             } else {
-                $order->where(['order_filial_id' => Auth::user()->filial_id, 'order_status' => 'keltirish', 'order_driver' => Auth::id()]);
+                $order->where('order_filial_id', Auth::user()->filial_id)->where('order_status', 'keltirish')->where('order_driver', Auth::id());
             }
-            return $order->with('custumer')->paginate($limit);
+            return $order->with('custumer')->orderBy('nomer', 'desc')->paginate($limit);
         }
         if ($status == 'yakunlanmagan') {
-            $order = $order->where(['order_filial_id' => Auth::user()->filial_id])->orderByDesc('order_id');
+            $order = $order->where('order_filial_id', Auth::user()->filial_id)->orderByDesc('order_id');
             if (Auth::user()->role == 'joyida_yuvish')
-                $order = $order->where(['order_status' => 'qabul qilindi'])->orWhere(['order_status' => 'joyida_yuvish']);
+                $order = $order->where('order_status', 'qabul qilindi')->orWhere('order_status', 'joyida_yuvish');
             else
-                $order = $order->where(['order_status' => 'qabul qilindi']);
+                $order = $order->where('order_status', 'qabul qilindi');
 
             if (Auth::user()->role != 'admin_filial' or Auth::user()->role == 'hisobchi')
-                $order = $order->where(['order_driver' => Auth::id()]);
+                $order = $order->where('order_driver', Auth::id());
             return  $order->with('custumer')->paginate($limit);
         }
     }

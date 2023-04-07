@@ -18,10 +18,10 @@ class Order extends Model
     ];
     public $timestamps = false;
     protected $appends = [];
-    public function costumer()
-    {
-        return $this->belongsTo(Costumers::class, 'id', 'costumer_id');
-    }
+    // public function costumer()
+    // {
+    //     return $this->belongsTo(Costumers::class, 'id', 'costumer_id');
+    // }
     public function custumer()
     {
         return $this->hasOne(Costumers::class, 'id', 'costumer_id');

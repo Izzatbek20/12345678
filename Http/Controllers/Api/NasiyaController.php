@@ -46,7 +46,7 @@ class NasiyaController extends Controller
         }
 
         $nasiya =  $nasiya->orderBy('ber_date');
-        return $nasiya->with('nasiyachi:id,costumer_name,costumer_phone_1,costumer_phone_2')->with('user:id,fullname')->paginate($limit_count);
+        return $nasiya->with('nasiyachi:id,costumer_name,costumer_phone_1,costumer_phone_2')->with('user:id,fullname')->with('order.custumer')->paginate($limit_count);
     }
 
     /**
